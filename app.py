@@ -3,194 +3,195 @@ import pandas as pd
 import pickle
 import plotly.express as px
 
-
 st.set_page_config(
-    page_title="Customer Intelligence Dashboard",
-    layout="wide"
+    page_title="AI Customer Profiler",
+    layout="centered"
 )
-
 
 st.markdown("""
 <style>
-    body {
-        background-color: #f8f9fc;
-    }
 
-    .main-title {
-        text-align: center;
-        font-size: 170px;
-        font-weight: bold;
-        color: #2c3e50;
-    }
+[data-testid="stAppViewContainer"] {
+    background-color: #eef2f7 !important;
+}
 
-    .stMetric {
-        background-color: white;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0px 2px 6px rgba(0,0,0,0.1);
-    }
+body {
+    background-color: #eef2f7 !important;
+}
+
+.main-title {
+    text-align: center;
+    font-size: 55px;
+    font-weight: 900;
+    color: #0f172a;
+}
+
+.tagline {
+    text-align: center;
+    font-size: 18px;
+    color: #64748b;
+    margin-bottom: 40px;
+}
+
+.prediction-card {
+    padding: 40px;
+    border-radius: 25px;
+    color: white;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    margin: 20px 0;
+}
+
+.card-title {
+    font-size: 32px;
+    font-weight: 800;
+}
+
+.card-subtitle {
+    font-size: 18px;
+    opacity: 0.9;
+}
+
+.bg-low { background: linear-gradient(135deg, #FF9D6C, #BB4E75); }
+.bg-high { background: linear-gradient(135deg, #11998e, #38ef7d); }
+.bg-frequent { background: linear-gradient(135deg, #00c6ff, #0072ff); }
+.bg-occasional { background: linear-gradient(135deg, #8E2DE2, #4A00E0); }
+.bg-premium { background: linear-gradient(135deg, #FFD700, #B8860B); }
+
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<p class="main-title">Customer Intelligence Dashboard</p>', unsafe_allow_html=True)
-st.caption("AI-powered decision system for customer segmentation and business strategy")
+@st.cache_resource
+def load_assets():
+    model = pickle.load(open('customer_segmentation_model.pkl', 'rb'))
+    scaler = pickle.load(open('scaler.pkl', 'rb'))
+    df = pd.read_csv("customer_data.csv")
+    return model, scaler, df
 
-model = pickle.load(open('customer_segmentation_model.pkl', 'rb'))
-scaler = pickle.load(open('scaler.pkl', 'rb'))
-customer_df = pd.read_csv("customer_data.csv")
+model, scaler, customer_df = load_assets()
 
+st.markdown('<p class="main-title">Customer AI</p>', unsafe_allow_html=True)
+st.markdown('<p class="tagline">Real-time Segmentation & Behavioral Strategy Engine</p>', unsafe_allow_html=True)
 
-st.sidebar.markdown("🔍 Customer Input Panel")
+tab_main, tab_insights = st.tabs(["Prediction Console", "Growth Analytics"])
 
-total_spent = st.sidebar.slider(
-    " Total Spent",
-    0,
-    int(customer_df['TotalSpent'].max()),
-    value=5000,
-    step=1000
-)
+with tab_main:
 
-total_orders = st.sidebar.slider(
-    " Total Orders",
-    0,
-    int(customer_df['TotalOrders'].max()),
-    value=10,
-    step=5
-)
+    st.markdown("### Input Customer Metrics")
 
-cluster = None
+    c1, c2 = st.columns(2)
+    with c1:
+        spent = st.number_input("Total Revenue Contribution ($)", min_value=0, value=2500, step=500)
+    with c2:
+        orders = st.number_input("Total Purchase Frequency", min_value=0, value=5, step=1)
 
-if st.sidebar.button("Predict Cluster"):
+    if st.button("EXECUTE ANALYSIS", use_container_width=True):
 
-    new_customer = pd.DataFrame(
-        [[total_spent, total_orders]],
-        columns=["TotalSpent", "TotalOrders"]
-    )
+        input_data = pd.DataFrame([[spent, orders]], columns=["TotalSpent", "TotalOrders"])
+        scaled_data = scaler.transform(input_data)
+        cluster = model.predict(scaled_data)[0]
 
-    new_customer_scaled = scaler.transform(new_customer)
-    prediction = model.predict(new_customer_scaled)
+        segments = {
+            0: {
+                "name": "Low-Value",
+                "class": "bg-low",
+                "explanation": "This customer shows low spending and low engagement. They are at risk of churn and may not see enough value in your product yet.",
+                "tips": [
+                    "Launch re-engagement campaigns using email or SMS with personalized offers based on their past activity.",
+                    "Provide limited-time discounts or entry-level bundles to encourage their next purchase.",
+                    "Analyze where they dropped off and remove friction in onboarding or checkout."
+                ]
+            },
+            1: {
+                "name": "High-Value",
+                "class": "bg-high",
+                "explanation": "This customer contributes significant revenue and is highly valuable to the business. Retaining them is critical.",
+                "tips": [
+                    "Offer premium support or dedicated assistance to enhance their experience.",
+                    "Provide exclusive deals, early access, and loyalty rewards to maintain satisfaction.",
+                    "Monitor behavior patterns and proactively engage to prevent churn."
+                ]
+            },
+            2: {
+                "name": "Frequent Buyer",
+                "class": "bg-frequent",
+                "explanation": "This customer purchases regularly and shows strong engagement but may have moderate spending per order.",
+                "tips": [
+                    "Introduce loyalty programs with reward points or cashback incentives.",
+                    "Use personalized recommendations to increase average order value.",
+                    "Bundle products or upsell to maximize revenue from frequent purchases."
+                ]
+            },
+            3: {
+                "name": "Occasional",
+                "class": "bg-occasional",
+                "explanation": "This customer interacts irregularly and lacks consistent purchasing behavior.",
+                "tips": [
+                    "Run retargeting ads and timely email reminders to re-engage them.",
+                    "Send personalized notifications based on browsing or past purchases.",
+                    "Create urgency using limited-time offers or seasonal campaigns."
+                ]
+            },
+            4: {
+                "name": "Premium",
+                "class": "bg-premium",
+                "explanation": "This is a top-tier customer with very high spending and strong loyalty. They are key revenue drivers.",
+                "tips": [
+                    "Provide VIP experiences such as exclusive memberships or concierge services.",
+                    "Offer early access to products and personalized premium deals.",
+                    "Encourage referrals and testimonials to leverage their influence."
+                ]
+            }
+        }
 
-    cluster = prediction[0]
+        res = segments.get(cluster)
 
-    st.sidebar.success(f"Customer belongs to Cluster {cluster}")
+        st.markdown(f"""
+        <div class="prediction-card {res['class']}">
+            <div class="card-title">{res['name']} Customer</div>
+            <div class="card-subtitle">AI-powered segmentation result</div>
+        </div>
+        """, unsafe_allow_html=True)
 
+        st.markdown("### What this means")
 
-    if cluster == 0:
-        st.sidebar.info("Offer discounts and campaigns to increase engagement.")
+        st.markdown(f"""
+        <div style="padding:20px; border-radius:15px; background:#f8fafc;">
+        <b>Customer Segment:</b> {res['name']} <br><br>
+        {res['explanation']} <br><br>
+        <b>Business Impact:</b> This classification helps you decide how to engage this customer effectively, increase retention, boost revenue, or prevent churn.
+        </div>
+        """, unsafe_allow_html=True)
 
-    elif cluster == 1:
-        st.sidebar.success("Target with premium products and exclusive deals.")
+        st.subheader("Recommendations")
 
-    elif cluster == 2:
-        st.sidebar.info("Introduce loyalty programs and reward points.")
+        col1, col2, col3 = st.columns(3)
+        for i, tip in enumerate(res['tips']):
+            with [col1, col2, col3][i]:
+                st.info(f"Step {i+1}\n\n{tip}")
 
-    elif cluster == 3:
-        st.sidebar.warning("Use retargeting ads to bring them back.")
+with tab_insights:
 
-    elif cluster == 4:
-        st.sidebar.success("Provide VIP services and early access offers.")
-
-
-st.markdown("Business Overview")
-
-col1, col2, col3 = st.columns(3)
-
-col1.metric("Total Customers", len(customer_df))
-col2.metric("Avg Spending", round(customer_df['TotalSpent'].mean(), 2))
-col3.metric("Avg Orders", round(customer_df['TotalOrders'].mean(), 2))
-
-
-tab1, tab2, tab3 = st.tabs(["Overview", "Visualization", "Insights"])
-
-
-with tab1:
-    st.subheader("Key Business Insights")
-
-    st.write(f"Total Customers: {len(customer_df)}")
-    st.write(f"Average Spending: {round(customer_df['TotalSpent'].mean(), 2)}")
-    st.write(f"Average Orders: {round(customer_df['TotalOrders'].mean(), 2)}")
-
-    st.write("Customers are segmented based on spending behavior and purchase frequency.")
-
-
-with tab2:
-    st.subheader("Customer Segmentation Visualization")
+    st.subheader("Customer Segmentation Map")
 
     fig = px.scatter(
         customer_df,
         x="TotalSpent",
         y="TotalOrders",
         color="Cluster",
-        title="Customer Segmentation",
         template="plotly_white"
     )
 
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("Cluster Distribution")
-
-    cluster_counts = customer_df['Cluster'].value_counts()
-    st.bar_chart(cluster_counts)
-
-with tab3:
-    st.subheader("Business Insights")
+    st.markdown("### Customer Segment Breakdown")
 
     st.markdown("""
-    🔹 **Cluster 0** → Low-value customers  
-    🔹 **Cluster 1** → High spenders  
-    🔹 **Cluster 2** → Frequent buyers  
-    🔹 **Cluster 3** → Occasional buyers  
-    🔹 **Cluster 4** → Premium customers  
-
-    **Business Strategies:**
-    - Target high spenders with premium offers  
-    - Retain frequent buyers with loyalty programs  
-    - Convert low-value customers using discounts  
-    """)
-
-
-if cluster is not None:
-    st.subheader("Business Recommendation")
-
-    if cluster == 0:
-        st.write("Low-value customers → Use discounts and campaigns.")
-
-    elif cluster == 1:
-        st.write("High-value customers → Focus on retention and premium services.")
-
-    elif cluster == 2:
-        st.write("Frequent buyers → Use loyalty programs.")
-
-    elif cluster == 3:
-        st.write("Occasional customers → Apply retargeting ads.")
-
-    elif cluster == 4:
-        st.write("Premium customers → Offer VIP experience.")
-
-
-st.markdown("---")
-st.subheader("AI Business Assistant")
-
-user_input = st.text_input("Ask business questions about customers")
-
-if user_input:
-    user_input = user_input.lower()
-
-    if "high value" in user_input:
-        st.success("Focus on Cluster 1 & 4 customers for maximum revenue.")
-
-    elif "low value" in user_input:
-        st.info("Use discounts to convert low-value customers.")
-
-    elif "frequent" in user_input:
-        st.success("Loyalty programs work best for frequent buyers.")
-
-    elif "increase sales" in user_input:
-        st.write("Target premium + frequent customers to boost revenue.")
-
-    elif "recommend" in user_input:
-        st.write("Focus on high spenders and frequent buyers.")
-
-    else:
-        st.warning("Try asking about strategies or customer types.")
-
+    <div style="padding:25px; border-radius:20px; background:white;">
+    <b>Low-Value Customers</b> → Low spending, low engagement <br>
+    <b>High-Value Customers</b> → High spending <br>
+    <b>Frequent Buyers</b> → Regular purchases <br>
+    <b>Occasional Customers</b> → Irregular buying <br>
+    <b>Premium Customers</b> → Very high-value customers  
+    </div>
+    """, unsafe_allow_html=True)
